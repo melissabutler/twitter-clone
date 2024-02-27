@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
+from forms import UserAddForm, LoginForm, MessageForm, EditUser
 from models import db, connect_db, User, Message
 
 CURR_USER_KEY = "curr_user"
@@ -18,12 +18,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
 
 connect_db(app)
-
+app.app_context().push()
 
 ##############################################################################
 # User signup/login/logout
@@ -112,8 +112,11 @@ def login():
 @app.route('/logout')
 def logout():
     """Handle logout of user."""
+    do_logout()
+    flash('Logged out', "success")
 
-    # IMPLEMENT THIS
+    return redirect('/login')
+
 
 
 ##############################################################################
@@ -210,9 +213,65 @@ def stop_following(follow_id):
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
     """Update profile for current user."""
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect('/')
+    form = EditUser(obj=g.user)
+    if form.validate_on_submit():
+        if not g.user.authenticate(g.user.username, form.password.data):
+            flash("Wrong password", "danger")
+            return redirect('/')
+        else:
+            g.user.username = form.username.data
+            g.user.email = form.email.data
+            g.user.image_url = form.image_url.data
+            g.user.header_image_url = form.header_image_url.data
+            g.user.bio = form.bio.data
 
-    # IMPLEMENT THIS
+            db.session.add(g.user)
+            db.session.commit()
+            flash("User successfully edited.","success")
+            return redirect(f"/users/{g.user.id}")
+    return render_template('/users/edit.html', form=form)
+    
+@app.route('/users/<int:user_id>/likes')
+def show_likes(user_id):
+    """Show list of messages this user has liked."""
 
+    user = User.query.get_or_404(user_id)
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    liked_messages= []
+    for like in g.user.likes:
+        liked_messages.append(like.id)
+    messages = (Message
+                .query
+                .filter(Message.id.in_(liked_messages))
+                .order_by(Message.timestamp.desc())
+                .limit(100)
+                .all())
+    # raise
+    return render_template('users/likes.html', user=user, messages=messages)
+
+@app.route('/users/add_like/<int:msg_id>', methods=["GET", "POST"])
+def add_like(msg_id):
+    """Adds or removes message from current user's likes"""
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect('/')
+    liked_message = Message.query.get(msg_id)
+    if liked_message in g.user.likes: 
+        g.user.likes.remove(liked_message)
+    else:
+        g.user.likes.append(liked_message)
+    
+
+    db.session.commit()
+
+    return redirect('/')
+##### IMPLEMENT THIS!!!
 
 @app.route('/users/delete', methods=["POST"])
 def delete_user():
@@ -292,13 +351,23 @@ def homepage():
     """
 
     if g.user:
+        following = []
+        for user in g.user.following:
+            following.append(user.id)
+        likes = []
+        for message in g.user.likes:
+            likes.append(message.id)
+        
         messages = (Message
                     .query
+                    .filter(Message.user_id.in_(following) | Message.user_id.in_([g.user.id]))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
-
-        return render_template('home.html', messages=messages)
+        likes = (Message.query
+                 .filter(Message.id.in_(likes)))
+        # raise
+        return render_template('home.html', messages=messages, likes=likes)
 
     else:
         return render_template('home-anon.html')
