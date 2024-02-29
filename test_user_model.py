@@ -28,21 +28,10 @@ from app import app
 # db.drop_all()
 db.create_all() 
 
-# u = User(
-#             id= 1,
-#             email="test@test.com",
-#             username="testuser",
-#             password="HASHED_PASSWORD"
-#         )
-# u2 = User(
-#             id= 2,
-#             email="test2@test.com",
-#             username="testuser2",
-#             password="HASHED_PASSWORD"
-#         )
+
 
 class UserModelTestCase(TestCase):
-    """Test views for messages."""
+    """Test user model."""
 
     def setUp(self):
         """Create test client, add sample data."""
@@ -55,7 +44,18 @@ class UserModelTestCase(TestCase):
         
 
         self.client = app.test_client()
-    
+    # u = User(
+#             id= 1,
+#             email="test@test.com",
+#             username="testuser",
+#             password="HASHED_PASSWORD"
+#         )
+# u2 = User(
+#             id= 2,
+#             email="test2@test.com",
+#             username="testuser2",
+#             password="HASHED_PASSWORD"
+#         )
     # def tearDown(self):
     #     """Delete tables after test"""
     #     db.session.remove()
@@ -179,6 +179,7 @@ class UserModelTestCase(TestCase):
             image_url="/static/images/default-pic.png"
         )
         self.assertIsInstance(user, User)
+
     def test_create_user_fail(self):
         """ Does user.create fail if given non-valid credentials?"""
 
@@ -203,6 +204,7 @@ class UserModelTestCase(TestCase):
         user_auth = User.authenticate(username="testuser", password="HASHED_PASSWORD")
         
         self.assertIsInstance(user_auth, User)
+        
     def test_user_authenticate_fail_username(self):
         """Does user.authenticate fail with an invalid username?"""
         user = User.signup(

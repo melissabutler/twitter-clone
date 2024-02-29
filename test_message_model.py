@@ -108,7 +108,6 @@ class MessageModelTestCase(TestCase):
 
         self.assertNotIn(m, u.messages)
 
-
     def test_user_likes(self):
         """Does the user detect liked message by user2?"""
         u = User.query.get_or_404(1)
@@ -134,5 +133,3 @@ class MessageModelTestCase(TestCase):
 
         self.assertNotIn(m, u.likes)
     
-    # def test_message_likes(self):
-    #     """Does the message detect users who have liked it?"""
